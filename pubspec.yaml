@@ -1,0 +1,59 @@
+name: smart_recall
+description: A smart flashcard app using spaced repetition.
+
+# Prevent accidental publishing
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.1
+  shared_preferences: ^2.2.2
+  cupertino_icons: ^1.0.2
+  url_launcher: ^6.1.12
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  fl_chart: ^1.0.0
+  visibility_detector: ^0.4.0+2
+  package_info_plus: ^8.3.0
+  web: ^1.1.1  # Pin to a specific version to avoid conflicts
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.8
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/images/ellipses/
+#    - assets/images/logo.png
+    - assets/fonts/
+
+  fonts:
+    - family: Road Rage
+      fonts:
+        - asset: assets/fonts/RoadRage-Regular.ttf
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Roboto-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Roboto-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Roboto-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/Roboto-Black.ttf
+          weight: 900
