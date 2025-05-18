@@ -49,8 +49,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  void _showDailyGoalDialog(BuildContext context, ReminderService reminderService) {
-    final controller = TextEditingController(text: reminderService.dailyGoal.toString());
+  void _showDailyGoalDialog(
+      BuildContext context, ReminderService reminderService) {
+    final controller =
+        TextEditingController(text: reminderService.dailyGoal.toString());
 
     showDialog(
       context: context,
@@ -194,7 +196,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: Text('${reminderService.dailyGoal} cards'),
                   trailing: IconButton(
                     icon: const Icon(Icons.edit),
-                    onPressed: () => _showDailyGoalDialog(context, reminderService),
+                    onPressed: () =>
+                        _showDailyGoalDialog(context, reminderService),
                   ),
                 ),
                 Divider(
@@ -248,64 +251,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.delete_forever,
-                  color: Colors.red[700],
-                ),
-              ),
-              title: const Text('Clear All Data'),
-              subtitle: const Text('This action cannot be undone'),
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppTheme.borderRadiusMedium),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isDarkMode
+                          ? Colors.red.withOpacity(0.1)
+                          : Colors.red[100],
+                      shape: BoxShape.circle,
                     ),
-                    title: Row(
-                      children: [
-                        Icon(
-                          Icons.warning_rounded,
-                          color: Colors.red[700],
-                          size: 24,
-                        ),
-                        const SizedBox(width: 12),
-                        const Text('Clear All Data?'),
-                      ],
+                    child: Icon(
+                      Icons.delete_forever,
+                      color: Colors.red[400],
                     ),
-                    content: const Text(
-                      'This will permanently delete all your decks, cards, and progress. This action cannot be undone.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.grey[600],
-                        ),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _clearAllData(context);
-                        },
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.red[700],
-                        ),
-                        child: const Text('Clear Data'),
-                      ),
-                    ],
                   ),
-                );
-              },
+                  title: const Text('Clear All Data'),
+                  subtitle: const Text('This action cannot be undone'),
+                  onTap: () => _clearAllData(context),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 32),
@@ -348,7 +314,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   title: const Text('Version'),
-                  subtitle: Text('$_version (Build $_buildNumber)'),
+                  subtitle: Text('v$_version ($_buildNumber)'),
                 ),
                 Divider(
                   color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
@@ -368,8 +334,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: AppTheme.primaryBlue,
                     ),
                   ),
-                  title: const Text('Built with Flutter'),
-                  subtitle: const Text('Made with ❤️ by Smart Recall Team'),
+                  title: const Text('Developer'),
+                  subtitle: const Text('Made by Rudra Makwana'),
                 ),
               ],
             ),
@@ -380,4 +346,3 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
- 

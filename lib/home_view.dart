@@ -76,7 +76,6 @@ class _HomeViewState extends State<HomeView>
   Widget _buildAnimatedSection({
     required String sectionId,
     required Widget child,
-    bool slideUp = true,
   }) {
     return VisibilityDetector(
       key: Key(sectionId),
@@ -90,14 +89,14 @@ class _HomeViewState extends State<HomeView>
       },
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 800),
+        curve: Curves.easeOut,
         opacity: _sectionVisibility[sectionId]! ? 1.0 : 0.0,
         child: AnimatedSlide(
           duration: const Duration(milliseconds: 800),
+          curve: Curves.easeOut,
           offset: _sectionVisibility[sectionId]!
               ? Offset.zero
-              : slideUp
-                  ? const Offset(0, 0.2)
-                  : const Offset(-0.2, 0),
+              : const Offset(0, 0.2),
           child: child,
         ),
       ),
@@ -161,7 +160,6 @@ class _HomeViewState extends State<HomeView>
                         key: _sectionKeys[1],
                         child: _buildAnimatedSection(
                           sectionId: 'features',
-                          slideUp: false,
                           child: FeaturesSection(),
                         ),
                       ),
@@ -176,7 +174,6 @@ class _HomeViewState extends State<HomeView>
                         key: _sectionKeys[3],
                         child: _buildAnimatedSection(
                           sectionId: 'testimonials',
-                          slideUp: false,
                           child: TestimonialsSection(),
                         ),
                       ),

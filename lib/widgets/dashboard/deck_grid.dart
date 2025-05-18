@@ -318,6 +318,26 @@ class _DeckCardState extends State<_DeckCard> {
                         'Navigating to review with deck: ${widget.deck.name}');
                     print('Deck ID: ${widget.deck.id}');
                     print('Flashcards count: ${widget.deck.flashcards.length}');
+                    if (widget.deck.flashcards.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text(
+                            'Add some flashcards to this deck before reviewing',
+                          ),
+                          action: SnackBarAction(
+                            label: 'Add Cards',
+                            onPressed: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/add-flashcard',
+                                arguments: widget.deck,
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                      return;
+                    }
                     Navigator.pushNamed(
                       context,
                       '/review',
