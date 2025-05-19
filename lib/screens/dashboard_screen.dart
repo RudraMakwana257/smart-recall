@@ -7,6 +7,8 @@ import '../widgets/dashboard/welcome_header.dart';
 import '../widgets/dashboard/stats_summary.dart';
 import '../widgets/dashboard/deck_grid.dart';
 import '../widgets/dashboard/action_buttons.dart';
+import '../widgets/onboarding_dialog.dart';
+import '../services/preferences_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -17,6 +19,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final DeckRepository _deckRepository = DeckRepository();
+  final PreferencesService _preferencesService = PreferencesService();
   List<Deck> _decks = [];
   bool _isLoading = true;
   bool _isRefreshing = false;
@@ -26,6 +29,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _loadDecks();
     _deckRepository.addListener(_onDecksChanged);
+    _checkFirstTimeUser();
   }
 
   @override
@@ -68,6 +72,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _checkFirstTimeUser() async {
+    final hasSeenOnboarding = await _preferencesService.hasSeenOnboarding;
+    if (!hasSeenOnboarding && mounted) {
+      // Show onboarding dialog after a short delay to allow the screen to build
+      Future.delayed(const Duration(milliseconds: 500), () {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const OnboardingDialog(),
+        ).then((_) => _preferencesService.setHasSeenOnboarding(true));
+      });
+    }
+  }
+
   void _navigateToCreateDeck() {
     Navigator.pushNamed(context, '/create-deck-form').then((_) => _loadDecks());
   }
@@ -80,30 +98,104 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ).then((_) => _loadDecks());
   }
 
-  Future<void> _deleteDeck(Deck deck) async {
-    try {
-      await _deckRepository.deleteDeck(deck.id);
-      if (mounted) {
-        ToastUtils.showToast(
-          context: context,
-          message: '${deck.name} has been deleted',
-          actionLabel: 'Undo',
-          onActionPressed: () async {
-            await _deckRepository.addDeck(deck);
-            _loadDecks();
-          },
-        );
-        _loadDecks();
-      }
-    } catch (e) {
-      if (mounted) {
-        ToastUtils.showToast(
-          context: context,
-          message: 'Failed to delete deck',
-          isError: true,
-        );
-      }
-    }
+  void _deleteDeck(Deck deck) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.borderRadiusLarge),
+        ),
+        backgroundColor:
+            isDarkMode ? AppTheme.darkCardBackground : Colors.white,
+        title: Row(
+          children: [
+            Icon(
+              Icons.delete_outline,
+              color:
+                  isDarkMode ? AppTheme.darkPrimaryBlue : AppTheme.primaryBlue,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Delete Deck',
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: isDarkMode
+                    ? AppTheme.darkTextPrimary
+                    : theme.textTheme.titleLarge?.color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete "${deck.name}"?',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: isDarkMode
+                    ? AppTheme.darkTextSecondary
+                    : theme.textTheme.bodyLarge?.color,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This action cannot be undone.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: isDarkMode
+                    ? AppTheme.darkTextSecondary.withOpacity(0.7)
+                    : Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  isDarkMode ? AppTheme.darkTextSecondary : Colors.grey[600],
+            ),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await _deckRepository.deleteDeck(deck.id);
+                if (mounted) {
+                  ToastUtils.showToast(
+                    context: context,
+                    message: 'Deck deleted successfully',
+                    isError: false,
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ToastUtils.showToast(
+                    context: context,
+                    message: 'Failed to delete deck',
+                    isError: true,
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  isDarkMode ? AppTheme.darkPrimaryBlue : AppTheme.primaryBlue,
+              shape: RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.circular(AppTheme.borderRadiusMedium),
+              ),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _navigateToReview(Deck deck) {
@@ -282,6 +374,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             // Deck Grid with animation
             DeckGrid(
               decks: _decks,
+              onCreateDeck: _navigateToCreateDeck,
               onReview: _navigateToReview,
               onEdit: _navigateToEditDeck,
               onDelete: _deleteDeck,

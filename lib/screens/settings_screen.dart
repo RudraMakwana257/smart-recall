@@ -140,14 +140,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     child: Icon(
                       isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                      color: AppTheme.primaryBlue,
+                      color: isDarkMode
+                          ? AppTheme.darkPrimaryBlue
+                          : AppTheme.primaryBlue,
                     ),
                   ),
                   title: const Text('Dark Mode'),
                   trailing: Switch(
                     value: themeService.darkMode,
-                    onChanged: (value) => themeService.toggleTheme(),
-                    activeThumbColor: AppTheme.primaryBlue,
+                    onChanged: (value) {
+                      themeService.toggleTheme();
+                    },
+                    activeColor: isDarkMode
+                        ? AppTheme.darkPrimaryBlue
+                        : AppTheme.primaryBlue,
+                    activeTrackColor: (isDarkMode
+                            ? AppTheme.darkPrimaryBlue
+                            : AppTheme.primaryBlue)
+                        .withOpacity(0.5),
                   ),
                 ),
               ],

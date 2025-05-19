@@ -10,6 +10,8 @@ import 'screens/review_screen.dart';
 import 'screens/stats_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/landing_screen.dart';
+import 'screens/edit_deck_screen.dart';
 import 'services/theme_service.dart';
 import 'utils/app_theme.dart';
 import 'repositories/deck_repository.dart';
@@ -69,7 +71,9 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'Smart Recall',
           debugShowCheckedModeBanner: false,
-          theme: themeService.theme,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeService.darkMode ? ThemeMode.dark : ThemeMode.light,
           home: const InitialViewSelector(),
           routes: {
             '/dashboard': (context) => const DashboardScreen(),
@@ -96,6 +100,15 @@ class MyApp extends StatelessWidget {
               final args = ModalRoute.of(context)?.settings.arguments;
               if (args is Deck) {
                 return ReviewScreen(deck: args);
+              }
+              return const Scaffold(
+                body: Center(child: Text('Invalid deck reference')),
+              );
+            },
+            '/edit-deck': (context) {
+              final args = ModalRoute.of(context)?.settings.arguments;
+              if (args is Deck) {
+                return EditDeckScreen(deck: args);
               }
               return const Scaffold(
                 body: Center(child: Text('Invalid deck reference')),

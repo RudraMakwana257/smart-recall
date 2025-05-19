@@ -7,7 +7,7 @@ class ThemeService extends ChangeNotifier {
   static const String _darkModeKey = 'darkMode';
 
   ThemeService(this._prefs) {
-    darkMode = _prefs.getBool(_darkModeKey) ?? false;
+    _darkMode = _prefs.getBool(_darkModeKey) ?? false;
   }
 
   bool _darkMode = false;
@@ -16,13 +16,15 @@ class ThemeService extends ChangeNotifier {
   ThemeData get theme => _darkMode ? AppTheme.darkTheme : AppTheme.lightTheme;
 
   set darkMode(bool value) {
-    _darkMode = value;
-    _prefs.setBool(_darkModeKey, value);
-    notifyListeners();
+    if (_darkMode != value) {
+      _darkMode = value;
+      _prefs.setBool(_darkModeKey, value);
+      notifyListeners();
+    }
   }
 
   void toggleTheme() {
-    darkMode = !darkMode;
+    darkMode = !_darkMode;
   }
 
   Color get backgroundColor =>

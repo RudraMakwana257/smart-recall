@@ -55,4 +55,9 @@ class ReviewService {
         now.add(getReviewInterval(updatedCard.reviewLevel));
     return updatedCard;
   }
+
+  static DateTime getNextReviewTime(Flashcard card) {
+    return card.nextReview ??
+        DateTime.now().add(getReviewInterval(card.reviewLevel));
+  }
 }

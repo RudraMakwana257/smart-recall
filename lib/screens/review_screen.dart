@@ -8,6 +8,8 @@ import '../widgets/review_complete_view.dart';
 import '../widgets/review_header.dart';
 import '../widgets/review_controls.dart';
 import '../utils/app_theme.dart';
+import '../utils/page_transitions.dart';
+import 'dashboard_screen.dart';
 
 class ReviewScreen extends StatefulWidget {
   final Deck deck;
@@ -19,7 +21,7 @@ class ReviewScreen extends StatefulWidget {
 }
 
 class _ReviewScreenState extends State<ReviewScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final DeckRepository _deckRepository = DeckRepository();
   final ReviewService _reviewService = ReviewService();
   List<Flashcard> _dueCards = [];
@@ -29,9 +31,12 @@ class _ReviewScreenState extends State<ReviewScreen>
   bool _isLoading = true;
   bool _hasError = false;
   String? _errorMessage;
+  int _streak = 0;
 
   late AnimationController _progressController;
   late Animation<double> _progressAnimation;
+  late AnimationController _cardController;
+  late Animation<double> _cardAnimation;
 
   @override
   void initState() {
@@ -49,6 +54,19 @@ class _ReviewScreenState extends State<ReviewScreen>
       begin: 0.0,
       end: 1.0,
     ).animate(_progressController);
+
+    _cardController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+
+    _cardAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _cardController,
+      curve: Curves.easeInOut,
+    ));
 
     _initializeReview();
   }
@@ -100,6 +118,18 @@ class _ReviewScreenState extends State<ReviewScreen>
     final currentCard = _dueCards[_currentCardIndex];
     final updatedCard =
         ReviewService.processReviewResponse(currentCard, quality);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    // Update streak
+    if (quality >= 3) {
+      setState(() {
+        _streak++;
+      });
+    } else {
+      setState(() {
+        _streak = 0;
+      });
+    }
 
     try {
       // Update the flashcard in the deck
@@ -109,14 +139,82 @@ class _ReviewScreenState extends State<ReviewScreen>
         widget.deck.flashcards[deckIndex] = updatedCard;
         await _deckRepository.updateDeck(widget.deck);
       }
+
+      // Show next review time with animation
+      if (mounted) {
+        final nextReview = ReviewService.getNextReviewTime(updatedCard);
+        final hours = nextReview.difference(DateTime.now()).inHours;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  Icons.schedule,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Next review scheduled in ${hours > 24 ? '${(hours / 24).floor()} days' : '$hours hours'}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                if (_streak > 0)
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.local_fire_department,
+                          color: Colors.orange,
+                          size: 16,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          '$_streak',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            backgroundColor:
+                isDarkMode ? AppTheme.darkPrimaryBlue : AppTheme.primaryBlue,
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height - 100,
+              left: 20,
+              right: 20,
+            ),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
       _showNextCard();
     } catch (e) {
       print('Error updating flashcard: $e');
-      // Show error snackbar but continue to next card
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Failed to save review progress'),
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Failed to save review progress'),
+              ],
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -132,6 +230,7 @@ class _ReviewScreenState extends State<ReviewScreen>
         _showAnswer = false;
         _updateProgress();
       });
+      _cardController.forward(from: 0.0);
     } else {
       setState(() {
         _sessionComplete = true;
@@ -143,6 +242,7 @@ class _ReviewScreenState extends State<ReviewScreen>
     setState(() {
       _showAnswer = !_showAnswer;
     });
+    _cardController.forward(from: 0.0);
   }
 
   void _updateProgress() {
@@ -156,6 +256,7 @@ class _ReviewScreenState extends State<ReviewScreen>
   @override
   void dispose() {
     _progressController.dispose();
+    _cardController.dispose();
     super.dispose();
   }
 
@@ -168,7 +269,7 @@ class _ReviewScreenState extends State<ReviewScreen>
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,6 +290,24 @@ class _ReviewScreenState extends State<ReviewScreen>
                     : theme.textTheme.titleSmall?.color,
               ),
             ),
+            if (_streak > 0)
+              Row(
+                children: [
+                  Icon(
+                    Icons.local_fire_department,
+                    color: Colors.orange,
+                    size: 16,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    '$_streak day streak',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
         elevation: 0,
@@ -204,6 +323,32 @@ class _ReviewScreenState extends State<ReviewScreen>
             ),
           ),
         ),
+        actions: [
+          if (!_sessionComplete && !_isLoading)
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Center(
+                child: AnimatedBuilder(
+                  animation: _progressAnimation,
+                  builder: (context, child) {
+                    return SizedBox(
+                      width: 100,
+                      child: LinearProgressIndicator(
+                        value: _progressAnimation.value,
+                        backgroundColor:
+                            isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          isDarkMode
+                              ? AppTheme.darkPrimaryBlue
+                              : AppTheme.primaryBlue,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+        ],
       ),
       body: _buildBody(isDarkMode, theme),
     );
@@ -285,14 +430,32 @@ class _ReviewScreenState extends State<ReviewScreen>
                         ),
                         child: Column(
                           children: [
-                            Text(
-                              'Due Today: ${_dueCards.length} Cards',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                color: isDarkMode
-                                    ? AppTheme.darkTextPrimary
-                                    : theme.textTheme.titleLarge?.color,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Due Today: ${_dueCards.length} Cards',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    color: isDarkMode
+                                        ? AppTheme.darkTextPrimary
+                                        : theme.textTheme.titleLarge?.color,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Tooltip(
+                                  message:
+                                      'Spaced repetition is a learning technique that helps you remember information for longer by reviewing it at increasing intervals. The more confident you are with a card, the longer until its next review.',
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.help_outline,
+                                      color: isDarkMode
+                                          ? AppTheme.darkTextSecondary
+                                          : Colors.grey[600],
+                                    ),
+                                    onPressed: () {},
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -569,7 +732,7 @@ class _ReviewScreenState extends State<ReviewScreen>
             const SizedBox(height: 24),
             Text(
               widget.deck.flashcards.isEmpty
-                  ? 'No Flashcards to Review'
+                  ? 'This deck is empty. Add flashcards to begin reviewing.'
                   : 'All Caught Up! 🎉',
               style: theme.textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -581,7 +744,7 @@ class _ReviewScreenState extends State<ReviewScreen>
             const SizedBox(height: 12),
             Text(
               widget.deck.flashcards.isEmpty
-                  ? 'Add some flashcards to this deck to start reviewing!'
+                  ? 'Create your first flashcard to start learning!'
                   : 'Come back tomorrow for more practice.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyLarge?.copyWith(
@@ -617,7 +780,10 @@ class _ReviewScreenState extends State<ReviewScreen>
                   ),
                 if (widget.deck.flashcards.isEmpty) const SizedBox(width: 16),
                 OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => context.pushReplacementWithTransition(
+                    const DashboardScreen(),
+                    direction: SlideDirection.left,
+                  ),
                   icon: const Icon(Icons.arrow_back),
                   label: const Text('Return to Dashboard'),
                   style: OutlinedButton.styleFrom(
@@ -698,7 +864,10 @@ class _ReviewScreenState extends State<ReviewScreen>
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => context.pushReplacementWithTransition(
+                const DashboardScreen(),
+                direction: SlideDirection.left,
+              ),
               icon: const Icon(Icons.arrow_back),
               label: const Text('Return to Dashboard'),
               style: ElevatedButton.styleFrom(

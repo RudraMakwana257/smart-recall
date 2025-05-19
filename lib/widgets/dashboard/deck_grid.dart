@@ -1,383 +1,169 @@
 import 'package:flutter/material.dart';
 import '../../models/deck_model.dart';
 import '../../utils/app_theme.dart';
-import '../../repositories/deck_repository.dart';
+import '../../utils/page_transitions.dart';
+import '../../screens/add_flashcards_screen.dart';
+import '../../screens/review_screen.dart';
 
 class DeckGrid extends StatelessWidget {
   final List<Deck> decks;
+  final VoidCallback onCreateDeck;
   final Function(Deck) onReview;
   final Function(Deck) onEdit;
-  final Function(Deck)? onDelete;
+  final Function(Deck) onDelete;
 
   const DeckGrid({
     super.key,
     required this.decks,
+    required this.onCreateDeck,
     required this.onReview,
     required this.onEdit,
-    this.onDelete,
+    required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     if (decks.isEmpty) {
+      final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+      final theme = Theme.of(context);
+
       return SliverToBoxAdapter(
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: AppTheme.darkBlueGradient.scale(0.15),
-                  shape: BoxShape.circle,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: isDarkMode
+                  ? AppTheme.darkBlueGradient.scale(0.15)
+                  : AppTheme.primaryGradient.scale(0.1),
+              borderRadius: BorderRadius.circular(AppTheme.borderRadiusLarge),
+              boxShadow: isDarkMode
+                  ? AppTheme.darkModeShadows
+                  : AppTheme.lightModeShadows,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: isDarkMode
+                        ? AppTheme.darkBlueGradient
+                        : AppTheme.primaryGradient,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.library_add_outlined,
+                    size: 32,
+                    color: isDarkMode ? AppTheme.darkTextPrimary : Colors.white,
+                  ),
                 ),
-                child: Icon(
-                  Icons.library_books_outlined,
-                  size: 48,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppTheme.darkTextPrimary
-                      : Colors.white,
+                const SizedBox(height: 16),
+                Text(
+                  'No decks created yet',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: isDarkMode
+                        ? AppTheme.darkTextPrimary
+                        : theme.textTheme.titleLarge?.color,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'No decks yet',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                const SizedBox(height: 8),
+                Text(
+                  'Start by creating your first deck!',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: isDarkMode
+                        ? AppTheme.darkTextSecondary
+                        : theme.textTheme.bodyLarge?.color,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: onCreateDeck,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Create Deck'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDarkMode
+                        ? AppTheme.darkPrimaryBlue
+                        : AppTheme.primaryBlue,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
                     ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Create your first deck to start learning',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? AppTheme.darkTextSecondary
-                          : Theme.of(context).textTheme.bodyMedium?.color,
-                    ),
-              ),
-            ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      sliver: SliverGrid(
-        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 400,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          mainAxisExtent: 180, // Slightly increased to accommodate the button
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) => _DeckCard(
-            deck: decks[index],
-            onReview: onReview,
-            onEdit: onEdit,
-            onDelete: onDelete,
-          ),
-          childCount: decks.length,
-        ),
+    return SliverGrid(
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 300,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
+        childAspectRatio: 1.2,
       ),
-    );
-  }
-}
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final deck = decks[index];
+          final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-class _DeckCard extends StatefulWidget {
-  final Deck deck;
-  final Function(Deck) onReview;
-  final Function(Deck) onEdit;
-  final Function(Deck)? onDelete;
-
-  const _DeckCard({
-    required this.deck,
-    required this.onReview,
-    required this.onEdit,
-    this.onDelete,
-  });
-
-  @override
-  State<_DeckCard> createState() => _DeckCardState();
-}
-
-class _DeckCardState extends State<_DeckCard> {
-  bool _isHovered = false;
-  bool _isDeleting = false;
-
-  void _handleEdit() {
-    try {
-      widget.onEdit(widget.deck);
-    } catch (e) {
-      _showErrorDialog('Failed to edit deck');
-    }
-  }
-
-  void _handleDelete() async {
-    if (_isDeleting) return;
-
-    setState(() => _isDeleting = true);
-    try {
-      await widget.onDelete?.call(widget.deck);
-    } catch (e) {
-      _showErrorDialog('Failed to delete deck');
-    } finally {
-      if (mounted) {
-        setState(() => _isDeleting = false);
-      }
-    }
-  }
-
-  void _showErrorDialog(String message) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Error',
-          style: theme.textTheme.titleLarge?.copyWith(
-            color: theme.colorScheme.error,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          message,
-          style: theme.textTheme.bodyMedium,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final theme = Theme.of(context);
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          gradient: isDarkMode
-              ? AppTheme.darkBlueGradient.scale(0.1)
-              : AppTheme.primaryGradient.scale(0.05),
-          borderRadius: BorderRadius.circular(AppTheme.borderRadiusLarge),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(_isHovered ? 0.1 : 0.05),
-              blurRadius: _isHovered ? 12 : 8,
-              offset: Offset(0, _isHovered ? 6 : 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            widget.deck.name,
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: isDarkMode
-                                  ? AppTheme.darkTextPrimary
-                                  : theme.textTheme.titleLarge?.color,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+          return GestureDetector(
+            onTap: () => onReview(deck),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: isDarkMode
+                    ? AppTheme.darkBlueGradient.scale(0.15)
+                    : AppTheme.primaryGradient.scale(0.1),
+                borderRadius: BorderRadius.circular(AppTheme.borderRadiusLarge),
+                boxShadow: isDarkMode
+                    ? AppTheme.darkModeShadows
+                    : AppTheme.lightModeShadows,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    deck.name,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
                         ),
-                        PopupMenuButton<String>(
-                          icon: Icon(
-                            Icons.more_vert,
-                            color: isDarkMode
-                                ? AppTheme.darkTextSecondary
-                                : theme.textTheme.bodyMedium?.color,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                                AppTheme.borderRadiusMedium),
-                          ),
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              value: 'edit',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.edit_outlined,
-                                    size: 20,
-                                    color: isDarkMode
-                                        ? AppTheme.darkPrimaryBlue
-                                        : AppTheme.primaryBlue,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  const Text('Edit'),
-                                ],
-                              ),
-                            ),
-                            if (widget.onDelete != null)
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.delete_outline,
-                                      size: 20,
-                                      color: theme.colorScheme.error,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    const Text('Delete'),
-                                  ],
-                                ),
-                              ),
-                          ],
-                          onSelected: (value) {
-                            switch (value) {
-                              case 'edit':
-                                _handleEdit();
-                                break;
-                              case 'delete':
-                                _handleDelete();
-                                break;
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    if (widget.deck.description.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        widget.deck.description,
-                        style: theme.textTheme.bodyMedium?.copyWith(
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${deck.flashcards.length} cards',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: isDarkMode
                               ? AppTheme.darkTextSecondary
-                              : theme.textTheme.bodyMedium?.color,
+                              : Colors.grey[600],
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () => onEdit(deck),
+                        tooltip: 'Edit Deck',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () => onDelete(deck),
+                        tooltip: 'Delete Deck',
                       ),
                     ],
-                    const Spacer(),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.style_outlined,
-                          size: 16,
-                          color: isDarkMode
-                              ? AppTheme.darkTextSecondary
-                              : theme.textTheme.bodySmall?.color,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${widget.deck.flashcards.length} cards',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: isDarkMode
-                                ? AppTheme.darkTextSecondary
-                                : theme.textTheme.bodySmall?.color,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color: (isDarkMode
-                            ? AppTheme.darkPrimaryBlue
-                            : AppTheme.primaryBlue)
-                        .withOpacity(0.1),
-                  ),
-                ),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    print(
-                        'Navigating to review with deck: ${widget.deck.name}');
-                    print('Deck ID: ${widget.deck.id}');
-                    print('Flashcards count: ${widget.deck.flashcards.length}');
-                    if (widget.deck.flashcards.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text(
-                            'Add some flashcards to this deck before reviewing',
-                          ),
-                          action: SnackBarAction(
-                            label: 'Add Cards',
-                            onPressed: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/add-flashcard',
-                                arguments: widget.deck,
-                              );
-                            },
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    Navigator.pushNamed(
-                      context,
-                      '/review',
-                      arguments: widget.deck,
-                    );
-                  },
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(AppTheme.borderRadiusLarge),
-                    bottomRight: Radius.circular(AppTheme.borderRadiusLarge),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.menu_book,
-                          size: 20,
-                          color: isDarkMode
-                              ? AppTheme.darkPrimaryBlue
-                              : AppTheme.primaryBlue,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Review Flashcards',
-                          style: TextStyle(
-                            color: isDarkMode
-                                ? AppTheme.darkPrimaryBlue
-                                : AppTheme.primaryBlue,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
+        childCount: decks.length,
       ),
     );
   }
